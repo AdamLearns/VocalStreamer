@@ -41,14 +41,13 @@ def truncate_file(path):
 
 def was_trigger_phrase_uttered(phrases, path_to_captions_file):
   with open(path_to_captions_file, "r", encoding="utf-8") as file:
-    for line in file:
-      line = line.replace(",", "").replace(".", "").lower()
-      for trigger_phrase in phrases:
-        if trigger_phrase in line:
-          print("Trigger phrase found: " + trigger_phrase)
-          # Truncate the file so that we don't find the phrase again
-          truncate_file(path_to_captions_file)
-          return True
+    text = file.read().replace('\n', '').replace(",", "").replace(".", "").lower()
+    for trigger_phrase in phrases:
+      if trigger_phrase in text:
+        print("Trigger phrase found: " + trigger_phrase)
+        # Truncate the file so that we don't find the phrase again
+        truncate_file(path_to_captions_file)
+        return True
 
   return False
 
