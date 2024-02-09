@@ -1,6 +1,7 @@
 import obspython as S
 import pathlib
 import re
+import requests
 import subprocess
 import time
 
@@ -28,6 +29,10 @@ regular_stream_scene_name = "Regular streaming"
 game_scene_name = "Stream game"
 privacy_scene_name = "Privacy"
 
+# This is for vocalizing commands to run on my bot
+bot_server_url = 'http://minipc:3001/run-fuzzy-command'
+path_to_password_file = "/Volumes/inland/code/VocalStreamer/password.txt"
+
 # Handle to the game process
 game_proc = None
 
@@ -50,20 +55,58 @@ def truncate_file(path):
     with open(path, "w") as file:
       file.truncate()
 
+def collapse_file_text_to_string(text):
+  return re.sub(r'[\n,.!?]', '', text).lower()
+
 def was_trigger_phrase_uttered(phrases, path_to_captions_file):
+  found_a_match = False
   with open(path_to_captions_file, "r", encoding="utf-8") as file:
-    text = re.sub(r'[\n,.!?]', '', file.read()).lower()
+    text = collapse_file_text_to_string(file.read())
     for trigger_phrase in phrases:
       if trigger_phrase in text:
         print("Trigger phrase found: " + trigger_phrase)
-        # Truncate the file so that we don't find the phrase again
-        truncate_file(path_to_captions_file)
-        return True
+        found_a_match = True
+        break
 
-  return False
+  if found_a_match:
+    # Truncate the file so that we don't find the phrase again
+    truncate_file(path_to_captions_file)
+
+  return found_a_match
+
+def check_for_commands():
+  with open(path_to_live_captions_file, "r", encoding="utf-8") as file:
+    text = collapse_file_text_to_string(file.read())
+    match = re.match(r'.*check out the ([\w\s]+) command.*', text)
+    if match is None:
+      return
+
+  truncate_file(path_to_live_captions_file)
+
+  command = match.group(1)
+
+  # It's possible that the command we got is very long depending on the trigger
+  # phrase. For example, if the phrase is "check out the ____ command", then I
+  # may say "check out the" first with no intention of talking about a command,
+  # then say the final word minutes later and have a bunch of garbage in the
+  # text.
+  if len(command) > 75:
+    print("Command is too long, not sending it to the server: " + command[:75])
+    return
+
+  print("Found a command match: " + command)
+
+  password = read_password_from_file()
+  myobj = {'password': password, 'query': command}
+  response = requests.post(bot_server_url, json = myobj)
+
+  print("Response from the bot: " + response.text)
 
 def check_for_trigger_phrases():
   global game_proc
+
+  check_for_commands()
+
   if was_trigger_phrase_uttered(start_break_trigger_phrases, path_to_live_captions_file):
     trigger_phrase_uttered()
 
@@ -121,8 +164,14 @@ def make_strings_lowercase(strings):
   for i in range(len(strings)):
     strings[i] = strings[i].lower()
 
+def read_password_from_file():
+  with open(path_to_password_file, "r", encoding="utf-8") as file:
+    return file.read().strip()
+
 def main():
   print("Script is running")
+  read_password_from_file()
+
   make_strings_lowercase(start_break_trigger_phrases)
   make_strings_lowercase(stop_break_trigger_phrases)
   make_strings_lowercase(close_game_phrases)
