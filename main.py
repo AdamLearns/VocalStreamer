@@ -1,5 +1,6 @@
 import obspython as S
 import pathlib
+import re
 import subprocess
 import time
 
@@ -41,7 +42,7 @@ def truncate_file(path):
 
 def was_trigger_phrase_uttered(phrases, path_to_captions_file):
   with open(path_to_captions_file, "r", encoding="utf-8") as file:
-    text = file.read().replace('\n', '').replace(",", "").replace(".", "").lower()
+    text = re.sub(r'[\n,.!?]', '', file.read()).lower()
     for trigger_phrase in phrases:
       if trigger_phrase in text:
         print("Trigger phrase found: " + trigger_phrase)
