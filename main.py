@@ -77,7 +77,7 @@ def check_for_trigger_phrases():
 
   if game_proc is not None:
 
-    if was_trigger_phrase_uttered(close_game_phrases, path_to_captions_file) or was_trigger_phrase_uttered(close_game_phrases, path_to_shadow_captions_file):
+    if was_trigger_phrase_uttered(close_game_phrases, path_to_live_captions_file) or was_trigger_phrase_uttered(close_game_phrases, path_to_shadow_captions_file):
       game_proc.kill()
       game_proc = None
 
