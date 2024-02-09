@@ -6,8 +6,17 @@ import time
 
 start_break_trigger_phrases = ["is it jump time", "break break break", "brake brake brake"]
 stop_break_trigger_phrases = ["I'm back"]
+close_game_phrases = ["close the game", "stop the game", "kill the game"]
+privacy_mode_phrases = ["engage privacy mode", "activate privacy", "Chat please look away for a second"]
 
+# This is the file where OBS writes the captions that go out to the world. It
+# only works when the mic is unmuted.
 path_to_live_captions_file = "/Users/adam/tmp/stream-captions.txt"
+
+# This is the file that the shadow mic writes to. It works even when the mic is
+# muted. As a result, the mic is always supposed to be muted.
+#
+# Keep in mind that the shadow mic is only added to certain scenes.
 path_to_shadow_captions_file = "/Users/adam/tmp/stream-captions2.txt"
 
 # This is what we'll mute when the trigger phrase is uttered
@@ -15,8 +24,9 @@ mic_name = "Mic/Aux"
 
 shadow_mic_name = "Test duplicate mic"
 
-# This is the scene we'll switch to when the trigger phrase is uttered
-scene_name_to_switch_to = "Stream game"
+regular_stream_scene_name = "Regular streaming"
+game_scene_name = "Stream game"
+privacy_scene_name = "Privacy"
 
 # Handle to the game process
 game_proc = None
@@ -54,15 +64,22 @@ def was_trigger_phrase_uttered(phrases, path_to_captions_file):
 
 def check_for_trigger_phrases():
   global game_proc
-  if was_trigger_phrase_uttered(start_break_trigger_phrases, path_to_captions_file):
+  if was_trigger_phrase_uttered(start_break_trigger_phrases, path_to_live_captions_file):
     trigger_phrase_uttered()
 
-  if game_proc is not None and was_return_from_break_trigger_phrase_uttered(stop_break_trigger_phrases, path_to_shadow_captions_file):
-    set_mic_muted(False)
-    set_scene_by_name("Regular streaming")
+  if was_trigger_phrase_uttered(privacy_mode_phrases, path_to_live_captions_file):
+    set_scene_by_name(privacy_scene_name)
 
-    game_proc.kill()
-    game_proc = None
+  # Remember: this will only work on scenes that have the shadow mic
+  if was_trigger_phrase_uttered(stop_break_trigger_phrases, path_to_shadow_captions_file):
+    set_mic_muted(False)
+    set_scene_by_name(regular_stream_scene_name)
+
+  if game_proc is not None:
+
+    if was_trigger_phrase_uttered(close_game_phrases, path_to_captions_file) or was_trigger_phrase_uttered(close_game_phrases, path_to_shadow_captions_file):
+      game_proc.kill()
+      game_proc = None
 
 # Returns True if this succeeded
 def set_mic_muted(muted):
@@ -95,7 +112,7 @@ def trigger_phrase_uttered():
     return
 
   print("Switching OBS scenes to the game")
-  set_scene_by_name(scene_name_to_switch_to)
+  set_scene_by_name(game_scene_name)
 
 def script_unload():
   S.timer_remove(check_for_trigger_phrases)
@@ -108,6 +125,8 @@ def main():
   print("Script is running")
   make_strings_lowercase(start_break_trigger_phrases)
   make_strings_lowercase(stop_break_trigger_phrases)
+  make_strings_lowercase(close_game_phrases)
+  make_strings_lowercase(privacy_mode_phrases)
 
   # Make sure we don't have any dangling trigger phrases
   truncate_file(path_to_live_captions_file)
