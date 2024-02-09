@@ -21,6 +21,7 @@
 ### Adam-specific instructions
 
 - Make a `password.txt` in the repo with the bot's server's password in it.
+- Make sure `/etc/hosts` has an entry for `minipc` on the local network. Note that the bot functionality only works on the local network.
 
 ## Adam's Code Jam
 
