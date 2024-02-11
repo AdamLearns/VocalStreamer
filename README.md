@@ -1,3 +1,7 @@
+## Video demo
+
+https://youtu.be/I0lcK_lfLOI
+
 ## Usage
 
 ### Prerequisites
