@@ -7,8 +7,8 @@ import time
 
 start_break_trigger_phrases = ["is it jump time", "is a jump time", "break break break", "brake brake brake"]
 stop_break_trigger_phrases = ["I'm back"]
-close_game_phrases = ["close the game", "close the the game", "closed the game", "stop the game", "kill the game"]
-privacy_mode_phrases = ["engage privacy mode", "activate privacy", "Chat please look away for a second"]
+close_game_phrases = ["close the game", "close the the game", "closed the game", "closed game", "stop the game", "kill the game"]
+privacy_mode_phrases = ["engage privacy", "engage privacy mode", "activate privacy", "Chat please look away for a second"]
 
 # This is the file where OBS writes the captions that go out to the world. It
 # only works when the mic is unmuted.
