@@ -142,8 +142,15 @@ def check_for_trigger_phrases():
       print("Killing Animal Royale")
       minecraft_server_proc.kill()
       minecraft_server_proc = None
-      minecraft_prism_proc.kill()
-      minecraft_prism_proc = None
+
+      if minecraft_prism_proc is not None:
+        minecraft_prism_proc.kill()
+        minecraft_prism_proc = None
+
+      kill_minecraft_client()
+
+def kill_minecraft_client():
+  subprocess.Popen("kill $(ps aux | grep 'PrismLauncher/libraries/com/mojang/minecraft' | grep -v grep | awk '{print $2}')", shell=True)
 
 # Returns True if this succeeded
 def set_mic_muted(muted):
