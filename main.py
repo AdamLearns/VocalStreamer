@@ -4,8 +4,10 @@ import re
 import requests
 import subprocess
 import time
+import threading
 
-start_break_trigger_phrases = ["is it jump time", "is a jump time", "break break break", "brake brake brake"]
+start_jump_royale_trigger_phrases = ["is it jump time", "is a jump time", "break break break", "brake brake brake"]
+start_animal_royale_trigger_phrases = ["is it tnt time", "is it tnd time", "is it t&d time"]
 stop_break_trigger_phrases = ["I'm back"]
 close_game_phrases = ["close the game", "close the the game", "closed the game", "closed game", "stop the game", "kill the game"]
 privacy_mode_phrases = ["engage privacy", "engage privacy mode", "activate privacy", "Chat please look away for a second"]
@@ -25,6 +27,7 @@ mic_name = "Mic/Aux"
 
 shadow_mic_name = "Test duplicate mic"
 
+just_monitor_scene_name = "Just monitor"
 regular_stream_scene_name = "Regular streaming"
 game_scene_name = "Stream game"
 privacy_scene_name = "Privacy"
@@ -34,7 +37,9 @@ bot_server_url = 'http://minipc:3001/run-fuzzy-command'
 path_to_password_file = "/Volumes/inland/code/VocalStreamer/password.txt"
 
 # Handle to the game process
-game_proc = None
+jump_royale_proc = None
+minecraft_prism_proc = None
+minecraft_server_proc = None
 
 def set_scene_by_name(scene_name):
   scenes = S.obs_frontend_get_scenes()
@@ -103,12 +108,18 @@ def check_for_commands():
   print("Response from the bot: " + response.text)
 
 def check_for_trigger_phrases():
-  global game_proc
+  global jump_royale_proc
+  global minecraft_server_proc
+  global minecraft_prism_proc
 
   check_for_commands()
 
-  if was_trigger_phrase_uttered(start_break_trigger_phrases, path_to_live_captions_file):
-    trigger_phrase_uttered()
+  if was_trigger_phrase_uttered(start_jump_royale_trigger_phrases, path_to_live_captions_file):
+    start_jump_royale()
+
+  if was_trigger_phrase_uttered(start_animal_royale_trigger_phrases, path_to_live_captions_file):
+    thread = threading.Thread(target=start_animal_royale)
+    thread.start()
 
   if was_trigger_phrase_uttered(privacy_mode_phrases, path_to_live_captions_file):
     set_scene_by_name(privacy_scene_name)
@@ -118,11 +129,21 @@ def check_for_trigger_phrases():
     set_mic_muted(False)
     set_scene_by_name(regular_stream_scene_name)
 
-  if game_proc is not None:
+  if jump_royale_proc is not None:
 
     if was_trigger_phrase_uttered(close_game_phrases, path_to_live_captions_file) or was_trigger_phrase_uttered(close_game_phrases, path_to_shadow_captions_file):
-      game_proc.kill()
-      game_proc = None
+      print("Killing Jump Royale")
+      jump_royale_proc.kill()
+      jump_royale_proc = None
+
+  if minecraft_server_proc is not None:
+
+    if was_trigger_phrase_uttered(close_game_phrases, path_to_live_captions_file) or was_trigger_phrase_uttered(close_game_phrases, path_to_shadow_captions_file):
+      print("Killing Animal Royale")
+      minecraft_server_proc.kill()
+      minecraft_server_proc = None
+      minecraft_prism_proc.kill()
+      minecraft_prism_proc = None
 
 # Returns True if this succeeded
 def set_mic_muted(muted):
@@ -136,22 +157,79 @@ def set_mic_muted(muted):
 
   return mic is not None
 
-def trigger_phrase_uttered():
-  global game_proc
+def start_animal_royale():
+  global minecraft_prism_proc
+  global minecraft_server_proc
+  if not set_mic_muted(True):
+    # If the mic can't be muted, don't do anything else, that way there's an
+    # obvious indicator that it couldn't be muted.
+    return
+
+  set_scene_by_name(just_monitor_scene_name)
+
+  # To debug, add "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005" to the string
+  cmd_string = "java -Xms8192M -Xmx8192M -XX:+AlwaysPreTouch -XX:+DisableExplicitGC -XX:+ParallelRefProcEnabled -XX:+PerfDisableSharedMem -XX:+UnlockExperimentalVMOptions -XX:+UseG1GC -XX:G1HeapRegionSize=8M -XX:G1HeapWastePercent=5 -XX:G1MaxNewSizePercent=40 -XX:G1MixedGCCountTarget=4 -XX:G1MixedGCLiveThresholdPercent=90 -XX:G1NewSizePercent=30 -XX:G1RSetUpdatingPauseTimePercent=5 -XX:G1ReservePercent=20 -XX:InitiatingHeapOccupancyPercent=15 -XX:MaxGCPauseMillis=200 -XX:MaxTenuringThreshold=1 -XX:SurvivorRatio=32 -Dusing.aikars.flags=https://mcflags.emc.gs -Daikars.new.flags=true -jar paper-1.21.3-66.jar nogui"
+  server_arg_array = cmd_string.split()
+
+  print("Starting the Minecraft server")
+  minecraft_server_proc = subprocess.Popen(server_arg_array, cwd="/Users/adam/Downloads/paper")
+
+  num_attempts = 0
+  while True:
+    if minecraft_server_proc.poll() is not None:
+      minecraft_server_proc = None
+      print("Minecraft server died.")
+      return
+
+    # We could do "curl localhost:25565" or use the Python module mcstatus,
+    # but this is pretty easy, too
+    lsof_proc = subprocess.Popen(['lsof', '-nP', '-iTCP', '-sTCP:LISTEN'], stdout=subprocess.PIPE)
+
+    try:
+      lsof_proc.wait(3)
+    except TimeoutExpired:
+      lsof_proc.kill()
+      minecraft_server_proc.kill()
+      minecraft_server_proc = None
+      print("lsof timed out")
+      return
+
+    server_is_ready = "25565" in str(lsof_proc.stdout.read())
+    if server_is_ready:
+      break
+
+    num_attempts += 1
+    if num_attempts > 30:
+      print("Minecraft server didn't start up after 30 attempts.")
+      minecraft_server_proc.kill()
+      minecraft_server_proc = None
+      return
+
+    time.sleep(0.5)
+
+  # We now know that the Minecraft server is running and can accept connections
+  print("Minecraft server is ready. Starting the client.")
+  minecraft_prism_proc = subprocess.Popen(['/Applications/Prism Launcher.app/Contents/MacOS/prismlauncher', '--launch', '1.21.3'])
+
+  # We just trust that this worked. If we want to verify it through code, we
+  # would need something like https://github.com/py-mine/mcstatus
+
+def start_jump_royale():
+  global jump_royale_proc
   if not set_mic_muted(True):
     # If the mic can't be muted, don't do anything else, that way there's an
     # obvious indicator that it couldn't be muted.
     return
 
   print("Launching Jump Royale")
-  game_proc = subprocess.Popen(['/Applications/Godot_mono.app/Contents/MacOS/Godot', '--path', '/Volumes/inland/code/JumpRoyale/JumpRoyale'])
+  jump_royale_proc = subprocess.Popen(['/Applications/Godot_mono.app/Contents/MacOS/Godot', '--path', '/Volumes/inland/code/JumpRoyale/JumpRoyale'])
 
   time.sleep(1.0)
 
   # If the process couldn't start...
-  if game_proc.poll() is not None:
-    print("Godot already died. Unmuting the mic.")
-    set_mic_muted(False)
+  if jump_royale_proc.poll() is not None:
+    jump_royale_proc = None
+    print("Godot already died.")
     return
 
   print("Switching OBS scenes to the game")
@@ -172,7 +250,7 @@ def main():
   print("Script is running")
   read_password_from_file()
 
-  make_strings_lowercase(start_break_trigger_phrases)
+  make_strings_lowercase(start_jump_royale_trigger_phrases)
   make_strings_lowercase(stop_break_trigger_phrases)
   make_strings_lowercase(close_game_phrases)
   make_strings_lowercase(privacy_mode_phrases)
@@ -182,7 +260,7 @@ def main():
   truncate_file(path_to_shadow_captions_file)
 
   S.timer_add(check_for_trigger_phrases, 500)
-  print(f"Timer started to check for start-break phrases {start_break_trigger_phrases} and stop-break phrases {stop_break_trigger_phrases}")
+  print(f"Timer started to check for start-break phrases {start_jump_royale_trigger_phrases} and stop-break phrases {stop_break_trigger_phrases}")
 
 
 main()
