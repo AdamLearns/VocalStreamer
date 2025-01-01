@@ -1,4 +1,5 @@
 import obspython as S
+import os
 import pathlib
 import re
 import requests
@@ -253,6 +254,12 @@ def read_password_from_file():
   with open(path_to_password_file, "r", encoding="utf-8") as file:
     return file.read().strip()
 
+def make_file_if_needed(file_path):
+  if not os.path.exists(file_path):
+    with open(file_path, 'w') as file:
+      file.write('')
+    print(f'File {file_path} created.')
+
 def main():
   print("Script is running")
   read_password_from_file()
@@ -261,6 +268,9 @@ def main():
   make_strings_lowercase(stop_break_trigger_phrases)
   make_strings_lowercase(close_game_phrases)
   make_strings_lowercase(privacy_mode_phrases)
+
+  make_file_if_needed(path_to_live_captions_file)
+  make_file_if_needed(path_to_shadow_captions_file)
 
   # Make sure we don't have any dangling trigger phrases
   truncate_file(path_to_live_captions_file)
