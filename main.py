@@ -11,7 +11,7 @@ start_jump_royale_trigger_phrases = ["is it jump time", "is a jump time", "break
 start_animal_royale_trigger_phrases = ["is it tnt time", "is it tnd time", "is it t&d time"]
 stop_break_trigger_phrases = ["I'm back"]
 close_game_phrases = ["close the game", "close the the game", "closed the game", "closed game", "stop the game", "kill the game"]
-privacy_mode_phrases = ["engage privacy", "engage privacy mode", "activate privacy", "Chat please look away for a second"]
+privacy_mode_phrases = ["engage privacy", "engage privacy mode", "engaged privacy mode", "activate privacy", "Chat please look away for a second"]
 
 # This is the file where OBS writes the captions that go out to the world. It
 # only works when the mic is unmuted.
