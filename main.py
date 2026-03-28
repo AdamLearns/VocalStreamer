@@ -102,6 +102,10 @@ def check_for_commands():
 
   print("Found a command match: " + command)
 
+  thread = threading.Thread(target=send_command_to_bot, args=(command,))
+  thread.start()
+
+def send_command_to_bot(command):
   password = read_password_from_file()
   myobj = {'password': password, 'query': command}
   response = requests.post(bot_server_url, json = myobj)
