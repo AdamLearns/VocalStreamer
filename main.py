@@ -120,7 +120,8 @@ def check_for_trigger_phrases():
   check_for_commands()
 
   if was_trigger_phrase_uttered(start_jump_royale_trigger_phrases, path_to_live_captions_file):
-    start_jump_royale()
+    thread = threading.Thread(target=start_jump_royale)
+    thread.start()
 
   if was_trigger_phrase_uttered(start_animal_royale_trigger_phrases, path_to_live_captions_file):
     thread = threading.Thread(target=start_animal_royale)
